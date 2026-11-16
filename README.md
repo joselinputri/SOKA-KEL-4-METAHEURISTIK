@@ -113,3 +113,4 @@ Hasil simulasi otomatis disimpan pada folder `results/`:
   - `results/chart_e1_vs_e2_makespan.png` (Perbandingan makespan acak vs hibrida)
   - `results/chart_e1_vs_e2_di.png` (Tingkat keseimbangan beban antar VM)
   - `results/chart_scalability_tasks.png` (Skalabilitas 100 - 1000 task)
+
