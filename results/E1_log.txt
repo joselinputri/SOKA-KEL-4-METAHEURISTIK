@@ -1,0 +1,11 @@
+
+== E1 | n=500 VM=50 w=0.7 seedMinMin=false | budget=50000 eval | LB=1130.46
+Min-Min : makespan=1592.25 DI=1.1350 gapLB=40.85% (24 ms)
+PSO  best=2384.00 mean=2666.09 worst=3110.00 sd=170.32 | DI=1.7039 | gapLB=135.84% | eval=50000 | 1464 ms
+FA   best=1260.00 mean=1672.07 worst=2182.00 sd=206.93 | DI=0.6360 | gapLB=47.91% | eval=50000 | 7409 ms
+BA   best=1993.00 mean=2483.47 worst=2986.00 sd=292.03 | DI=1.2653 | gapLB=119.69% | eval=50000 | 604 ms
+Wilcoxon rank-sum (makespan): PSO-FA p=0.0000 | PSO-BA p=0.0117 | FA-BA p=0.0000
+CloudSim PSO     2665.7500 | analitik 2665.7500 | selisih 0.0000% OK
+CloudSim FA      1468.0000 | analitik 1468.0000 | selisih 0.0000% OK
+CloudSim BA      2215.0000 | analitik 2215.0000 | selisih 0.0000% OK
+CloudSim Min-Min 1592.2500 | analitik 1592.2500 | selisih 0.0000% OK
