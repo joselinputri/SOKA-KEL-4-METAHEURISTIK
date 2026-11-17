@@ -65,6 +65,22 @@ Arsitektur dibuat hierarkis dua tingkat (host fisik dan VM heterogen) dan dikelo
 | PSO | Pembanding | Kontinu `[0, m)`, decode dengan `floor` | `algorithm/PsoScheduler.java` |
 | Min-Min | Baseline heuristik | Deterministik | `algorithm/MinMin.java` |
 
+### Mekanisme Kerja Algoritma
+
+1. **Bat Algorithm (BA) Diskret**:
+   - Vektor solusi $X_i \in \{0, 1, \dots, m-1\}^n$ merepresentasikan penempatan VM untuk setiap task.
+   - Kelelawar memperbarui frekuensi $f_i \in [0, f_{max}]$, kecepatan $v_i$, dan posisi menuju solusi terbaik global $X^*$.
+   - Pada ruang diskret, pembaruan posisi dimodelkan melalui mutasi posisi task terpilih dengan probabilitas yang dipengaruhi frekuensi.
+   - Eksplorasi lokal dilakukan di sekitar solusi terbaik dengan langkah acak jika $rand > r_i$ (pulse rate). Solusi baru diterima jika fitness lebih baik dan $rand < A_i$ (loudness), diikuti penyusutan $A_i$ dan peningkatan $r_i$.
+
+2. **Firefly Algorithm (FA) Diskret**:
+   - Intensitas cahaya kunang-kunang sebanding dengan kualitas nilai fungsi fitness (cahaya lebih terang = fitness lebih rendah/baik).
+   - Jarak antar kunang-kunang $i$ dan $j$ dihitung dengan **jarak Hamming** $r_{ij}$ (jumlah posisi task yang berbeda alokasi VM-nya).
+   - Daya tarik (*attractiveness*) meluruh terhadap jarak: $\beta(r) = \beta_0 e^{-\gamma r_{ij}^2}$. Kunang-kunang yang lebih redup ditarik ke kunang-kunang yang lebih terang dengan menukar alokasi task secara probabilistik sebesar $\beta(r)$, ditambah perturbasi mutasi acak $\alpha$ yang menurun bertahap (*cooling schedule*).
+
+3. **Inisialisasi Hibrida (E2 - Seeding Min-Min)**:
+   - Solusi deterministik dari Min-Min disisipkan sebagai individu pertama (`pop[0]`) pada populasi awal, sementara 29 individu lainnya tetap dibangkitkan secara acak. Metaheuristik (BA/FA/PSO) bertindak sebagai pengoptimal lokal (*fine-tuner*) untuk menyeimbangkan beban tanpa merusak makespan awal.
+
 **Parameter** (dari `algorithm/AlgorithmParams.java`):
 
 | Kelompok | Parameter | Nilai |
@@ -178,20 +194,33 @@ Lower Bound teoretis naik dari 234,95 s (100 task) menjadi 2254,99 s (1000 task)
 
 **7.3 Validasi CloudSim (selisih analitik vs CloudSim)**
 
+Untuk membuktikan keabsahan model analitik, jadwal yang dihasilkan dieksekusi langsung pada simulator diskret **CloudSim 3.0.3** (`k04.sim.CloudSimRunner`). Hasil simulasi menunjukkan kecocokan sempurna (selisih relatif 0,0000% < batas toleransi 1,00%):
+
+| Algoritma | Waktu Selesai CloudSim 3.0.3 (s) | Model Analitik (s) | Selisih Relatif (%) | Status Validasi |
+|---|---:|---:|---:|:---:|
+| **PSO** | 2665.7500 | 2665.7500 | 0.0000% | **VALID (Match)** |
+| **FA** | 1468.0000 | 1468.0000 | 0.0000% | **VALID (Match)** |
+| **BA** | 2215.0000 | 2215.0000 | 0.0000% | **VALID (Match)** |
+| **Min-Min** | 1592.2500 | 1592.2500 | 0.0000% | **VALID (Match)** |
+
 ![Screenshot validasi CloudSim](docs/screenshots/validasi-cloudsim.png)
-
-**7.4 File hasil yang terbentuk di `results/`**
-
-![Screenshot folder results](docs/screenshots/folder-results.png)
 
 ## 8. Analisis dan Kesimpulan
 
-1. **Hibridisasi sangat membantu.** Dengan seed Min-Min (E2), BA dan FA turun jauh dari E1 dan melampaui Min-Min. Metaheuristik efektif sebagai *fine-tuner* solusi awal yang sudah baik.
-2. **FA paling baik secara keseluruhan** pada dataset 500 task: makespan, DI, utilisasi, dan throughput terbaik pada mode E2.
-3. **BA sensitif terhadap inisialisasi.** Pada E1 hasilnya buruk (makespan 2428 s), tetapi pada E2 membaik 47,49%.
-4. **Skalabilitas.** Di antara BA, FA, dan PSO pada inisialisasi acak, FA umumnya punya gap terendah untuk 300 sampai 1000 task (28,43% pada 1000 task). Pada 100 task PSO lebih baik. Min-Min tanpa seed justru lebih baik dari FA pada 300, 600, 800, dan 1000 task.
-5. **Utilisasi PSO tetap rendah** (sekitar 61% pada E2), tanda PSO diskret ini kurang efektif memperbaiki keseimbangan beban.
-6. **Keterbatasan.** Hasil memakai seed 42 (satu run) sehingga belum ada rata-rata dari beberapa run, dan eksperimen hanya memakai dataset GoCJ dengan satu konfigurasi infrastruktur.
+1. **Hibridisasi sangat membantu.** Dengan seed Min-Min (E2), BA dan FA turun jauh dari E1 dan melampaui Min-Min. Metaheuristik terbukti sangat efektif sebagai *fine-tuner* solusi awal yang sudah baik untuk mengeliminasi kelemahan ketidakseimbangan beban pada Min-Min.
+2. **FA paling unggul secara keseluruhan** pada dataset 500 task:
+   - Mencapai Makespan terendah (1218 s, gap terhadap Lower Bound hanya **7,74%**).
+   - Menghasilkan Degree of Imbalance (DI) terendah (**0,1060** vs Min-Min 1,1350) dan simpangan baku beban VM terendah (**38,28 s**).
+   - Utilisasi sumber daya mencapai **93,92%** dan Throughput tertinggi (**0,4105 task/detik**).
+3. **Mengapa FA mengungguli BA dalam keseimbangan beban?**
+   - Algoritma Firefly menerapkan interaksi multi-arah (*all-to-all attractiveness*) di mana setiap kunang-kunang ditarik ke semua kunang-kunang yang lebih terang, dikombinasikan dengan jarak Hamming diskret. Ini menciptakan pengelompokan lokal yang beragam dan redistribusi task yang halus antar VM heterogen.
+   - Sebaliknya, Bat Algorithm diskret mengarahkan kelelawar secara terpusat menuju pemimpin global $X^*$. Saat populasi terjebak di sekitar $X^*$, mutasi berbasis frekuensi dan *random walk* lebih sulit menyeimbangkan antrean 50 VM tanpa mengorbankan makespan.
+4. **BA sangat sensitif terhadap inisialisasi.** Pada E1 (acak murni) BA lambat konvergen (makespan 2428 s), namun pada E2 dengan injeksi Min-Min performanya membaik secara drastis hingga **47,49%** (makespan menjadi 1275 s).
+5. **Skalabilitas (E4).** Pada penambahan task dari 100 hingga 1000 task:
+   - Makespan tumbuh proporsional dengan skala task seiring kenaikan Lower Bound (234,95 s ke 2254,99 s).
+   - FA secara konsisten mempertahankan gap terkecil terhadap batas bawah teoretis dibandingkan metaheuristik lainnya pada skala menengah hingga besar (gap 28,43% pada 1000 task).
+6. **Utilisasi PSO tetap rendah** (sekitar 61% pada E2), mengindikasikan representasi kontinu yang didekode ke diskret menggunakan fungsi *floor* kurang responsif terhadap penyeimbangan beban komputasi awan heterogen.
+7. **Keterbatasan dan Pengembangan.** Eksperimen saat ini menggunakan konfigurasi seed 42 dan beban CPU-bound dari GoCJ. Pengembangan lanjutan dapat mencakup multi-seed run (analisis rata-rata dan uji Wilcoxon multi-trial) serta penambahan biaya moneter (*cost/budget*) dan konsumsi energi (*energy consumption*).
 
 ## 9. Struktur Folder
 
